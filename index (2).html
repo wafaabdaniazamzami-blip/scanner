@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scanner Barcode</title>
+  <style>
+    :root {
+      --biru: #6d9eeb;
+      --oranye: #ff9900;
+      --hijau: #00ff00;
+      --teks: #111;
+      --garis: #111;
+      --abu: #666;
+      --salah: #b3261e;
+      --benar: #1b6e2d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 12px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: var(--teks);
+      background: #fff;
+    }
+    main { max-width: 480px; margin: 0 auto; }
+    h1 {
+      margin: 0 0 14px;
+      padding: 8px;
+      font-size: 18px;
+      font-weight: 400;
+      text-align: center;
+      background: var(--biru);
+    }
+    #kamera {
+      border: 1px solid var(--garis);
+      min-height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #fff;
+    }
+    #reader { width: 100%; }
+    #pesanKamera { padding: 12px; font-style: italic; text-align: center; }
+    .baris-scan { display: flex; justify-content: space-between; align-items: center; margin: 6px 0 0; min-height: 28px; }
+    #statusData { font-size: 13px; color: var(--abu); }
+    #scanUlang, #btnFoto {
+      border: 0; background: none; color: var(--biru);
+      font-size: 14px; text-decoration: underline; padding: 4px;
+    }
+    label { display: block; margin-top: 12px; font-style: italic; text-align: center; }
+    input[type="text"] {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      padding: 12px;
+      font-size: 18px;
+      border: 1px solid var(--garis);
+      border-radius: 0;
+      background: #fff;
+    }
+    input[type="text"]:focus-visible { outline: 3px solid var(--biru); outline-offset: 1px; }
+    #invoice { text-align: center; letter-spacing: 1px; }
+    #harga { text-align: right; }
+    #pesan { min-height: 22px; margin: 10px 0 0; font-size: 14px; text-align: center; }
+    #pesan.err { color: var(--salah); }
+    #pesan.ok { color: var(--benar); }
+    .tombol { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; }
+    .tombol button {
+      flex: 0 0 38%;
+      padding: 12px;
+      font-size: 16px;
+      border: 0;
+      border-radius: 0;
+      color: var(--teks);
+      text-align: left;
+    }
+    #btnPrev { background: var(--oranye); }
+    #btnNext { background: var(--hijau); }
+    .tombol button:disabled { opacity: .45; }
+    .tombol button:focus-visible { outline: 3px solid var(--teks); outline-offset: 2px; }
+    .modal {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; background: rgba(0, 0, 0, .6);
+    }
+    .modal[hidden] { display: none; }
+    .kotak { width: 100%; max-width: 420px; padding: 20px; background: #fff; border: 1px solid var(--garis); }
+    .kotak h2 { margin: 0 0 8px; font-size: 18px; }
+    .kotak p { margin: 0 0 14px; line-height: 1.45; font-size: 15px; }
+    .kotak button { display: block; width: 100%; margin-top: 8px; padding: 12px; font-size: 16px; border: 0; border-radius: 0; color: var(--teks); }
+    #mIzin { background: var(--hijau); }
+    #mFoto { background: var(--oranye); }
+    #mTutup { background: #e6e6e6; }
+    #kamera { cursor: pointer; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Scanner Barcode</h1>
+
+  <div id="kamera">
+    <div id="reader"></div>
+    <div id="pesanKamera">Ketuk di sini untuk mengaktifkan kamera</div>
+  </div>
+  <div class="baris-scan">
+    <span id="statusData">Data baru</span>
+    <button type="button" id="scanUlang" hidden>Scan ulang</button>
+    <button type="button" id="btnFoto" hidden>Foto barcode</button>
+    <input type="file" id="fileFoto" accept="image/*" capture="environment" hidden>
+  </div>
+
+  <label for="invoice">Nomor invoice</label>
+  <input type="text" id="invoice" autocomplete="off" placeholder="Hasil scan muncul di sini">
+
+  <label for="harga">Nilai Invoice</label>
+  <input type="text" id="harga" inputmode="numeric" autocomplete="off" placeholder="0">
+
+  <p id="pesan" role="status" aria-live="polite"></p>
+
+  <div class="tombol">
+    <button type="button" id="btnPrev">Previous</button>
+    <button type="button" id="btnNext">Next</button>
+  </div>
+</main>
+
+<div id="modalKamera" class="modal" role="dialog" aria-modal="true" aria-labelledby="mJudul" hidden>
+  <div class="kotak">
+    <h2 id="mJudul">Izinkan akses kamera</h2>
+    <p id="mTeks">Kamera dipakai untuk memindai barcode invoice. Tekan tombol hijau, lalu pilih Izinkan pada pop-up browser.</p>
+    <button type="button" id="mIzin">Izinkan kamera</button>
+    <button type="button" id="mFoto">Pakai foto barcode</button>
+    <button type="button" id="mTutup">Ketik manual saja</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  // ---- State ----
+  let records = [];      // data yang sudah disimpan pada sesi ini: {invoice, harga}
+  let pos = 0;           // posisi saat ini; pos === records.length berarti data baru
+  let draft = { invoice: '', harga: '' };  // isian data baru yang belum disimpan
+  let scanner = null;
+  let scannerJalan = false;
+  let scannerJeda = false;
+  let kodeTerakhir = '';
+
+  const $ = (id) => document.getElementById(id);
+  const elInvoice = $('invoice');
+  const elHarga = $('harga');
+  const elPesan = $('pesan');
+  const btnPrev = $('btnPrev');
+  const btnNext = $('btnNext');
+
+  // ---- Konfigurasi ----
+  // Ganti dengan URL Web App Apps Script (berakhiran /exec)
+  const API_URL = 'GANTI_DENGAN_URL_WEB_APP_APPS_SCRIPT';
+
+  function simpanLokal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function bacaLokal(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+
+  // PIN dan nama petugas ditanyakan sekali, lalu diingat di browser ini
+  function ambilKredensial() {
+    let pin = bacaLokal('pin');
+    let nama = bacaLokal('nama');
+    if (!pin) { pin = (prompt('Masukkan PIN akses') || '').trim(); simpanLokal('pin', pin); }
+    if (!nama) { nama = (prompt('Masukkan nama Anda') || '').trim(); simpanLokal('nama', nama); }
+    return { pin, nama };
+  }
+
+  async function api(action, data) {
+    const k = ambilKredensial();
+    const body = Object.assign({ action: action, pin: k.pin, user: k.nama }, data);
+    // Tanpa header khusus agar browser tidak mengirim preflight (CORS) ke Apps Script
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+    const json = await res.json();
+    if (json && json.code === 'PIN') { try { localStorage.removeItem('pin'); } catch (e) {} }
+    return json;
+  }
+
+  // ---- Utilitas ----
+  function formatRibuan(angka) {
+    return angka ? Number(angka).toLocaleString('id-ID') : '';
+  }
+  function bacaHarga(teks) {
+    return Number(String(teks).replace(/\D/g, '')) || 0;
+  }
+  function tampilPesan(teks, jenis) {
+    elPesan.textContent = teks || '';
+    elPesan.className = jenis || '';
+  }
+  function sibuk(ya) {
+    btnNext.disabled = ya;
+    btnPrev.disabled = ya || pos === 0;
+  }
+
+  // ---- Kamera / scanner ----
+  function mulaiScanner() {
+    if (!window.Html5Qrcode) {
+      $('pesanKamera').textContent = 'Library scanner gagal dimuat. Periksa koneksi internet.';
+      return;
+    }
+    buatScanner();
+    scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        // Kotak scan lebar dan pendek, cocok untuk barcode batang (1D)
+        qrbox: (w, h) => ({ width: Math.floor(w * 0.9), height: Math.max(90, Math.floor(Math.min(h * 0.5, 140))) })
+      },
+      saatTerscan,
+      () => {}
+    ).then(() => {
+      scannerJalan = true;
+      $('pesanKamera').hidden = true;
+    }).catch((err) => {
+      $('pesanKamera').textContent =
+        'Kamera langsung tidak bisa diakses (' + String(err) + '). Gunakan tombol "Foto barcode" di bawah, atau ketik nomor invoice manual.';
+      $('btnFoto').hidden = false;
+      bukaModal(pesanError(err));
+      console.error(err);
+    });
+  }
+
+  function jedaScanner(ya) {
+    if (!scannerJalan) return;
+    try {
+      if (ya && !scannerJeda) { scanner.pause(true); scannerJeda = true; }
+      if (!ya && scannerJeda) { scanner.resume(); scannerJeda = false; }
+    } catch (e) { console.error(e); }
+    $('scanUlang').hidden = !(ya && pos === records.length);
+  }
+
+  function saatTerscan(teks) {
+    if (pos < records.length) return;      // sedang melihat data lama
+    const kode = String(teks).trim();
+    if (!kode || kode === kodeTerakhir) return;
+    kodeTerakhir = kode;
+
+    elInvoice.value = kode;
+    if (navigator.vibrate) navigator.vibrate(120);
+    jedaScanner(true);
+    tampilPesan('Barcode terbaca. Isi nilai invoice.', 'ok');
+    elHarga.focus();
+
+    api('check', { invoice: kode })
+      .then((info) => {
+        if (info && info.exists) {
+          elHarga.value = formatRibuan(info.nilai);
+          tampilPesan('Invoice ini sudah tercatat. Ubah nilai lalu tekan Next untuk memperbarui.', 'err');
+        }
+      })
+      .catch(() => {});
+  }
+
+  // ---- Tampilan data ----
+  function tampilkan() {
+    const baru = pos === records.length;
+    if (baru) {
+      elInvoice.value = draft.invoice;
+      elHarga.value = draft.harga;
+      $('statusData').textContent = 'Data baru';
+      kodeTerakhir = draft.invoice;
+      jedaScanner(!!draft.invoice);
+    } else {
+      elInvoice.value = records[pos].invoice;
+      elHarga.value = formatRibuan(records[pos].harga);
+      $('statusData').textContent = 'Data ke-' + (pos + 1) + ' dari ' + records.length + ' (sudah disimpan)';
+      jedaScanner(true);
+    }
+    $('scanUlang').hidden = !(baru && scannerJeda);
+    btnPrev.disabled = pos === 0;
+    btnNext.disabled = false;
+  }
+
+  // ---- Event ----
+  elHarga.addEventListener('input', () => {
+    elHarga.value = formatRibuan(bacaHarga(elHarga.value));
+  });
+
+  $('scanUlang').addEventListener('click', () => {
+    kodeTerakhir = '';
+    elInvoice.value = '';
+    elHarga.value = '';
+    tampilPesan('');
+    jedaScanner(false);
+  });
+
+  btnPrev.addEventListener('click', () => {
+    if (pos === 0) return;
+    if (pos === records.length) {
+      draft = { invoice: elInvoice.value.trim(), harga: elHarga.value };
+    }
+    pos--;
+    tampilPesan('');
+    tampilkan();
+  });
+
+  btnNext.addEventListener('click', () => {
+    const invoice = elInvoice.value.trim();
+    const harga = bacaHarga(elHarga.value);
+    const lama = pos < records.length;
+
+    if (!invoice) return tampilPesan('Scan barcode atau isi nomor invoice dulu.', 'err');
+    if (!harga) return tampilPesan('Isi nilai invoice dulu.', 'err');
+
+    // Data lama tanpa perubahan: langsung lanjut tanpa menyimpan ulang
+    if (lama && records[pos].invoice === invoice && records[pos].harga === harga) {
+      pos++;
+      tampilPesan('');
+      return tampilkan();
+    }
+
+    sibuk(true);
+    tampilPesan('Menyimpan...');
+    api('save', { invoice, harga })
+      .then((res) => {
+        if (!res || !res.ok) {
+          sibuk(false);
+          return tampilPesan((res && res.message) || 'Gagal menyimpan.', 'err');
+        }
+        if (lama) records[pos] = { invoice, harga };
+        else { records.push({ invoice, harga }); draft = { invoice: '', harga: '' }; }
+        pos++;
+        tampilPesan(res.message, 'ok');
+        if (pos === records.length) { kodeTerakhir = ''; jedaScanner(false); }
+        tampilkan();
+      })
+      .catch((err) => {
+        sibuk(false);
+        tampilPesan('Gagal menyimpan: ' + err.message, 'err');
+      });
+  });
+
+  // ---- Pop-up izin kamera ----
+  function buatScanner() {
+    if (scanner) return scanner;
+    const F = Html5QrcodeSupportedFormats;
+    scanner = new Html5Qrcode('reader', {
+      formatsToSupport: [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR],
+      useBarCodeDetectorIfSupported: true,
+      verbose: false
+    });
+    return scanner;
+  }
+
+  const modal = $('modalKamera');
+  function bukaModal(teks) {
+    if (teks) $('mTeks').textContent = teks;
+    modal.hidden = false;
+    $('mIzin').focus();
+  }
+  function tutupModal() { modal.hidden = true; }
+
+  function pesanError(err) {
+    const nama = (err && err.name) || '';
+    const teks = String(err && err.message ? err.message : err);
+    const kode = nama || teks;
+    if (/NotAllowed|Permission/i.test(nama + ' ' + teks)) {
+      return 'Izin kamera ditolak atau diblokir (' + kode + '). Ketuk ikon di kiri alamat URL > Izin > Kamera > Izinkan, muat ulang halaman, lalu tekan Izinkan kamera lagi. Jika tidak ada pilihan izin sama sekali, browser memblokir kamera di halaman ini. Gunakan Pakai foto barcode.';
+    }
+    if (/NotFound|Requested device not found/i.test(nama + ' ' + teks)) {
+      return 'Kamera tidak ditemukan di perangkat ini (' + kode + ').';
+    }
+    if (/NotReadable|TrackStart/i.test(nama + ' ' + teks)) {
+      return 'Kamera sedang dipakai aplikasi lain (' + kode + '). Tutup aplikasi itu lalu coba lagi.';
+    }
+    return 'Kamera gagal dibuka (' + kode + '). Gunakan Pakai foto barcode atau ketik nomor invoice manual.';
+  }
+
+  async function mintaIzin() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      bukaModal('Browser atau halaman ini tidak mengizinkan akses kamera langsung. Gunakan Pakai foto barcode.');
+      $('btnFoto').hidden = false;
+      return;
+    }
+    try {
+      // Dipanggil dari ketukan tombol, sehingga browser boleh menampilkan pop-up izin
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      stream.getTracks().forEach((t) => t.stop());
+      tutupModal();
+      mulaiScanner();
+    } catch (err) {
+      console.error(err);
+      $('btnFoto').hidden = false;
+      bukaModal(pesanError(err));
+    }
+  }
+
+  $('mIzin').addEventListener('click', mintaIzin);
+  $('mFoto').addEventListener('click', () => {
+    tutupModal();
+    $('btnFoto').hidden = false;
+    $('fileFoto').click();
+  });
+  $('mTutup').addEventListener('click', () => {
+    tutupModal();
+    $('btnFoto').hidden = false;
+  });
+  $('kamera').addEventListener('click', () => { if (!scannerJalan) bukaModal(); });
+
+  // ---- Cadangan: foto barcode lewat aplikasi kamera bawaan HP ----
+  $('btnFoto').addEventListener('click', () => $('fileFoto').click());
+  $('fileFoto').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file || !window.Html5Qrcode) return;
+    buatScanner();
+    if (pos < records.length) return tampilPesan('Kembali ke data baru dulu (tekan Next).', 'err');
+    tampilPesan('Membaca foto...');
+    scanner.scanFile(file, false)
+      .then((teks) => { kodeTerakhir = ''; saatTerscan(teks); })
+      .catch(() => tampilPesan('Barcode tidak terbaca. Foto lebih dekat, tegak lurus, dan pastikan barcode utuh serta fokus.', 'err'));
+  });
+
+  // ---- Mulai ----
+  window.addEventListener('load', () => { ambilKredensial(); tampilkan(); bukaModal(); });
+</script>
+</body>
+</html>
