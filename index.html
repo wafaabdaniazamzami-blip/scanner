@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Scanner Barcode</title>
   <meta name="theme-color" content="#0a2a66">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Scanner">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     :root {
       /* Palet biru korporat. Ganti nilai hex di sini jika ada kode warna resmi. */
@@ -28,7 +35,7 @@
       background: var(--latar);
     }
     header {
-      padding: 20px 16px 64px;
+      padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 64px;
       color: #fff;
       background: linear-gradient(135deg, var(--biru-900), var(--biru-500));
     }
@@ -88,9 +95,20 @@
     }
     #scanUlang { margin-left: auto; }
 
+    #antrean {
+      padding: 4px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #8a4b00;
+      background: #fff1dc;
+      border-radius: 999px;
+    }
+    #antrean[hidden] { display: none; }
+
     /* Form */
     label { display: block; margin: 14px 0 6px; font-size: 14px; font-weight: 600; color: var(--biru-900); }
     label:first-child { margin-top: 2px; }
+    input[readonly] { background: #f4f7fc; }
     input[type="text"] {
       display: block;
       width: 100%;
@@ -104,9 +122,6 @@
     input[type="text"]:focus { outline: none; border-color: var(--biru-500); box-shadow: 0 0 0 3px rgba(30, 111, 217, .22); }
     input::placeholder { color: #9aa8bd; }
     #invoice { letter-spacing: .5px; }
-    .rp { position: relative; }
-    .rp span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--abu); }
-    #harga { padding-left: 46px; text-align: right; }
     #pesan { min-height: 22px; margin: 12px 0 0; font-size: 14px; text-align: center; }
     #pesan.err { color: var(--salah); }
     #pesan.ok { color: var(--benar); }
@@ -146,7 +161,7 @@
 <body>
 <header>
   <h1>Scanner Barcode</h1>
-  <p>Scan nomor invoice, lalu isi nilainya.</p>
+  <p>Scan nomor invoice, lalu tekan Next.</p>
 </header>
 <main>
   <section class="kartu">
@@ -156,6 +171,7 @@
     </div>
     <div class="baris-scan">
       <span id="statusData">Data baru</span>
+      <span id="antrean" hidden></span>
       <button type="button" id="scanUlang" hidden>Scan ulang</button>
       <button type="button" id="btnFoto" hidden>Foto barcode</button>
       <input type="file" id="fileFoto" accept="image/*" capture="environment" hidden>
@@ -166,11 +182,6 @@
     <label for="invoice">Nomor invoice</label>
     <input type="text" id="invoice" autocomplete="off" placeholder="Hasil scan muncul di sini">
 
-    <label for="harga">Nilai Invoice</label>
-    <div class="rp">
-      <span>Rp</span>
-      <input type="text" id="harga" inputmode="numeric" autocomplete="off" placeholder="0">
-    </div>
 
     <p id="pesan" role="status" aria-live="polite"></p>
 
@@ -194,9 +205,9 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
   // ---- State ----
-  let records = [];      // data yang sudah disimpan pada sesi ini: {invoice, harga}
+  let records = [];      // invoice yang sudah dicatat pada sesi ini: {invoice}
   let pos = 0;           // posisi saat ini; pos === records.length berarti data baru
-  let draft = { invoice: '', harga: '' };  // isian data baru yang belum disimpan
+  let draft = '';        // isian data baru yang belum dicatat
   let scanner = null;
   let scannerJalan = false;
   let scannerJeda = false;
@@ -204,10 +215,10 @@
 
   const $ = (id) => document.getElementById(id);
   const elInvoice = $('invoice');
-  const elHarga = $('harga');
   const elPesan = $('pesan');
   const btnPrev = $('btnPrev');
   const btnNext = $('btnNext');
+  const modal = $('modalKamera');
 
   // ---- Konfigurasi ----
   // Ganti dengan URL Web App Apps Script (berakhiran /exec)
@@ -228,30 +239,75 @@
   async function api(action, data) {
     const k = ambilKredensial();
     const body = Object.assign({ action: action, pin: k.pin, user: k.nama }, data);
-    // Tanpa header khusus agar browser tidak mengirim preflight (CORS) ke Apps Script
-    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 20000);
+    let res;
+    try {
+      // Tanpa header khusus agar browser tidak mengirim preflight (CORS) ke Apps Script
+      res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body), signal: ctl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     const json = await res.json();
     if (json && json.code === 'PIN') { try { localStorage.removeItem('pin'); } catch (e) {} }
     return json;
   }
 
+  // ---- Antrean kirim ----
+  // Tombol Next langsung lanjut; data dikirim di latar belakang dan otomatis dicoba ulang jika offline.
+  const KUNCI_ANTREAN = 'antrean';
+  let antrean = (() => {
+    try { return JSON.parse(localStorage.getItem(KUNCI_ANTREAN) || '[]'); } catch (e) { return []; }
+  })();
+
+  function simpanAntrean() {
+    try { localStorage.setItem(KUNCI_ANTREAN, JSON.stringify(antrean)); } catch (e) {}
+    tampilAntrean();
+  }
+  function tampilAntrean() {
+    const el = $('antrean');
+    el.hidden = antrean.length === 0;
+    el.textContent = antrean.length + ' menunggu kirim';
+  }
+
+  let sedangBilas = false;
+  async function bilasAntrean() {
+    if (sedangBilas) return;
+    sedangBilas = true;
+    try {
+      while (antrean.length) {
+        const paket = antrean.slice(0, 25);           // banyak invoice dalam satu kiriman
+        const res = await api('save', { items: paket });
+        if (!res || !res.ok) {
+          if (res && res.message) tampilPesan(res.message, 'err');
+          break;                                       // data tetap di antrean, dicoba lagi nanti
+        }
+        antrean = antrean.slice(paket.length);
+        simpanAntrean();
+        if (res.duplikat) tampilPesan(res.duplikat + ' invoice sudah tercatat sebelumnya, dilewati.', 'err');
+      }
+    } catch (e) { /* masih offline, coba lagi nanti */ }
+    sedangBilas = false;
+  }
+
   // ---- Utilitas ----
-  function formatRibuan(angka) {
-    return angka ? Number(angka).toLocaleString('id-ID') : '';
-  }
-  function bacaHarga(teks) {
-    return Number(String(teks).replace(/\D/g, '')) || 0;
-  }
   function tampilPesan(teks, jenis) {
     elPesan.textContent = teks || '';
     elPesan.className = jenis || '';
   }
-  function sibuk(ya) {
-    btnNext.disabled = ya;
-    btnPrev.disabled = ya || pos === 0;
-  }
 
   // ---- Kamera / scanner ----
+  function buatScanner() {
+    if (scanner) return scanner;
+    const F = Html5QrcodeSupportedFormats;
+    scanner = new Html5Qrcode('reader', {
+      formatsToSupport: [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR],
+      useBarCodeDetectorIfSupported: true,
+      verbose: false
+    });
+    return scanner;
+  }
+
   function mulaiScanner() {
     if (!window.Html5Qrcode) {
       $('pesanKamera').textContent = 'Library scanner gagal dimuat. Periksa koneksi internet.';
@@ -292,37 +348,29 @@
     if (pos < records.length) return;      // sedang melihat data lama
     const kode = String(teks).trim();
     if (!kode || kode === kodeTerakhir) return;
+    if (records.some((r) => r.invoice === kode)) {
+      return tampilPesan('Invoice ' + kode + ' sudah discan pada sesi ini.', 'err');
+    }
     kodeTerakhir = kode;
 
     elInvoice.value = kode;
     if (navigator.vibrate) navigator.vibrate(120);
     jedaScanner(true);
-    tampilPesan('Barcode terbaca. Isi nilai invoice.', 'ok');
-    elHarga.focus();
-
-    api('check', { invoice: kode })
-      .then((info) => {
-        if (info && info.exists) {
-          elHarga.value = formatRibuan(info.nilai);
-          tampilPesan('Invoice ini sudah tercatat. Ubah nilai lalu tekan Next untuk memperbarui.', 'err');
-        }
-      })
-      .catch(() => {});
+    tampilPesan('Barcode terbaca. Tekan Next untuk menyimpan.', 'ok');
   }
 
   // ---- Tampilan data ----
   function tampilkan() {
     const baru = pos === records.length;
+    elInvoice.readOnly = !baru;               // data lama hanya untuk dilihat
     if (baru) {
-      elInvoice.value = draft.invoice;
-      elHarga.value = draft.harga;
+      elInvoice.value = draft;
       $('statusData').textContent = 'Data baru';
-      kodeTerakhir = draft.invoice;
-      jedaScanner(!!draft.invoice);
+      kodeTerakhir = draft;
+      jedaScanner(!!draft);
     } else {
       elInvoice.value = records[pos].invoice;
-      elHarga.value = formatRibuan(records[pos].harga);
-      $('statusData').textContent = 'Data ke-' + (pos + 1) + ' dari ' + records.length + ' (sudah disimpan)';
+      $('statusData').textContent = 'Data ke-' + (pos + 1) + ' dari ' + records.length + ' (sudah dicatat)';
       jedaScanner(true);
     }
     $('scanUlang').hidden = !(baru && scannerJeda);
@@ -331,77 +379,47 @@
   }
 
   // ---- Event ----
-  elHarga.addEventListener('input', () => {
-    elHarga.value = formatRibuan(bacaHarga(elHarga.value));
-  });
-
   $('scanUlang').addEventListener('click', () => {
     kodeTerakhir = '';
     elInvoice.value = '';
-    elHarga.value = '';
     tampilPesan('');
     jedaScanner(false);
   });
 
   btnPrev.addEventListener('click', () => {
     if (pos === 0) return;
-    if (pos === records.length) {
-      draft = { invoice: elInvoice.value.trim(), harga: elHarga.value };
-    }
+    if (pos === records.length) draft = elInvoice.value.trim();
     pos--;
     tampilPesan('');
     tampilkan();
   });
 
   btnNext.addEventListener('click', () => {
-    const invoice = elInvoice.value.trim();
-    const harga = bacaHarga(elHarga.value);
-    const lama = pos < records.length;
-
-    if (!invoice) return tampilPesan('Scan barcode atau isi nomor invoice dulu.', 'err');
-    if (!harga) return tampilPesan('Isi nilai invoice dulu.', 'err');
-
-    // Data lama tanpa perubahan: langsung lanjut tanpa menyimpan ulang
-    if (lama && records[pos].invoice === invoice && records[pos].harga === harga) {
+    // Data lama hanya dilihat: langsung lanjut
+    if (pos < records.length) {
       pos++;
       tampilPesan('');
       return tampilkan();
     }
 
-    sibuk(true);
-    tampilPesan('Menyimpan...');
-    api('save', { invoice, harga })
-      .then((res) => {
-        if (!res || !res.ok) {
-          sibuk(false);
-          return tampilPesan((res && res.message) || 'Gagal menyimpan.', 'err');
-        }
-        if (lama) records[pos] = { invoice, harga };
-        else { records.push({ invoice, harga }); draft = { invoice: '', harga: '' }; }
-        pos++;
-        tampilPesan(res.message, 'ok');
-        if (pos === records.length) { kodeTerakhir = ''; jedaScanner(false); }
-        tampilkan();
-      })
-      .catch((err) => {
-        sibuk(false);
-        tampilPesan('Gagal menyimpan: ' + err.message, 'err');
-      });
+    const invoice = elInvoice.value.trim();
+    if (!invoice) return tampilPesan('Scan barcode atau isi nomor invoice dulu.', 'err');
+    if (records.some((r) => r.invoice === invoice)) {
+      return tampilPesan('Invoice ini sudah discan pada sesi ini.', 'err');
+    }
+
+    // Langsung lanjut ke scan berikutnya; pengiriman berjalan di latar belakang
+    antrean.push({ invoice: invoice, waktu: Date.now() });
+    simpanAntrean();
+    records.push({ invoice: invoice });
+    draft = '';
+    pos++;
+    tampilPesan('Tercatat.', 'ok');
+    tampilkan();
+    bilasAntrean();
   });
 
   // ---- Pop-up izin kamera ----
-  function buatScanner() {
-    if (scanner) return scanner;
-    const F = Html5QrcodeSupportedFormats;
-    scanner = new Html5Qrcode('reader', {
-      formatsToSupport: [F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR],
-      useBarCodeDetectorIfSupported: true,
-      verbose: false
-    });
-    return scanner;
-  }
-
-  const modal = $('modalKamera');
   function bukaModal(teks) {
     if (teks) $('mTeks').textContent = teks;
     modal.hidden = false;
@@ -471,7 +489,15 @@
   });
 
   // ---- Mulai ----
-  window.addEventListener('load', () => { ambilKredensial(); tampilkan(); bukaModal(); });
+  window.addEventListener('load', () => {
+    ambilKredensial();
+    tampilkan();
+    tampilAntrean();
+    bukaModal();
+    bilasAntrean();
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+  window.addEventListener('online', bilasAntrean);
 </script>
 </body>
 </html>
