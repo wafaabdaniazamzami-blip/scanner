@@ -126,6 +126,23 @@
     #pesan.err { color: var(--salah); }
     #pesan.ok { color: var(--benar); }
 
+    /* Pilihan hasil cek */
+    .pilih { display: flex; gap: 12px; margin-top: 12px; }
+    .pilih button {
+      flex: 1;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      background: #fff;
+      border: 1.5px solid;
+      border-radius: 12px;
+    }
+    #btnOke { color: var(--benar); border-color: var(--benar); }
+    #btnOke.aktif { color: #fff; background: var(--benar); }
+    #btnCek { color: #8a4b00; border-color: #c77700; }
+    #btnCek.aktif { color: #fff; background: #c77700; }
+    .pilih button:disabled { opacity: .45; }
+
     /* Tombol */
     .tombol { display: flex; gap: 12px; margin-top: 16px; }
     .tombol button {
@@ -161,7 +178,7 @@
 <body>
 <header>
   <h1>Scanner Barcode</h1>
-  <p>Scan nomor invoice, lalu tekan Next.</p>
+  <p>Scan nomor invoice, pilih Oke atau Butuh Cek, lalu tekan Next.</p>
 </header>
 <main>
   <section class="kartu">
@@ -182,6 +199,10 @@
     <label for="invoice">Nomor invoice</label>
     <input type="text" id="invoice" autocomplete="off" placeholder="Hasil scan muncul di sini">
 
+    <div class="pilih">
+      <button type="button" id="btnOke" aria-pressed="false">Oke</button>
+      <button type="button" id="btnCek" aria-pressed="false">Butuh Cek</button>
+    </div>
 
     <p id="pesan" role="status" aria-live="polite"></p>
 
@@ -195,7 +216,7 @@
 <div id="modalKamera" class="modal" role="dialog" aria-modal="true" aria-labelledby="mJudul" hidden>
   <div class="kotak">
     <h2 id="mJudul">Izinkan akses kamera</h2>
-    <p id="mTeks">Kamera dipakai untuk memindai barcode invoice. Tekan tombol hijau, lalu pilih Izinkan pada pop-up browser.</p>
+    <p id="mTeks">Kamera dipakai untuk memindai barcode invoice. Tekan tombol biru, lalu pilih Izinkan pada pop-up browser.</p>
     <button type="button" id="mIzin">Izinkan kamera</button>
     <button type="button" id="mFoto">Pakai foto barcode</button>
     <button type="button" id="mTutup">Ketik manual saja</button>
@@ -205,9 +226,11 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
   // ---- State ----
-  let records = [];      // invoice yang sudah dicatat pada sesi ini: {invoice}
+  let records = [];      // invoice yang sudah dicatat pada sesi ini: {invoice, hasil}
   let pos = 0;           // posisi saat ini; pos === records.length berarti data baru
   let draft = '';        // isian data baru yang belum dicatat
+  let hasil = '';        // pilihan pada data baru: 'Oke' / 'Butuh Cek'
+  let draftHasil = '';   // pilihan yang disimpan saat pindah ke data lama
   let scanner = null;
   let scannerJalan = false;
   let scannerJeda = false;
@@ -296,6 +319,25 @@
     elPesan.className = jenis || '';
   }
 
+  // Menandai pilihan Oke / Butuh Cek pada tombol
+  function setHasil(h) {
+    hasil = h;
+    $('btnOke').classList.toggle('aktif', h === 'Oke');
+    $('btnCek').classList.toggle('aktif', h === 'Butuh Cek');
+    $('btnOke').setAttribute('aria-pressed', String(h === 'Oke'));
+    $('btnCek').setAttribute('aria-pressed', String(h === 'Butuh Cek'));
+  }
+  $('btnOke').addEventListener('click', () => {
+    if (pos !== records.length) return;
+    setHasil('Oke');
+    tampilPesan('');
+  });
+  $('btnCek').addEventListener('click', () => {
+    if (pos !== records.length) return;
+    setHasil('Butuh Cek');
+    tampilPesan('');
+  });
+
   // ---- Kamera / scanner ----
   function buatScanner() {
     if (scanner) return scanner;
@@ -352,24 +394,29 @@
       return tampilPesan('Invoice ' + kode + ' sudah discan pada sesi ini.', 'err');
     }
     kodeTerakhir = kode;
+    setHasil('');                          // invoice baru: pilihan harus diisi ulang
 
     elInvoice.value = kode;
     if (navigator.vibrate) navigator.vibrate(120);
     jedaScanner(true);
-    tampilPesan('Barcode terbaca. Tekan Next untuk menyimpan.', 'ok');
+    tampilPesan('Barcode terbaca. Pilih Oke atau Butuh Cek, lalu tekan Next.', 'ok');
   }
 
   // ---- Tampilan data ----
   function tampilkan() {
     const baru = pos === records.length;
     elInvoice.readOnly = !baru;               // data lama hanya untuk dilihat
+    $('btnOke').disabled = !baru;
+    $('btnCek').disabled = !baru;
     if (baru) {
       elInvoice.value = draft;
+      setHasil(draftHasil);
       $('statusData').textContent = 'Data baru';
       kodeTerakhir = draft;
       jedaScanner(!!draft);
     } else {
       elInvoice.value = records[pos].invoice;
+      setHasil(records[pos].hasil || '');
       $('statusData').textContent = 'Data ke-' + (pos + 1) + ' dari ' + records.length + ' (sudah dicatat)';
       jedaScanner(true);
     }
@@ -382,13 +429,14 @@
   $('scanUlang').addEventListener('click', () => {
     kodeTerakhir = '';
     elInvoice.value = '';
+    setHasil('');
     tampilPesan('');
     jedaScanner(false);
   });
 
   btnPrev.addEventListener('click', () => {
     if (pos === 0) return;
-    if (pos === records.length) draft = elInvoice.value.trim();
+    if (pos === records.length) { draft = elInvoice.value.trim(); draftHasil = hasil; }
     pos--;
     tampilPesan('');
     tampilkan();
@@ -407,12 +455,14 @@
     if (records.some((r) => r.invoice === invoice)) {
       return tampilPesan('Invoice ini sudah discan pada sesi ini.', 'err');
     }
+    if (!hasil) return tampilPesan('Pilih Oke atau Butuh Cek dulu.', 'err');
 
     // Langsung lanjut ke scan berikutnya; pengiriman berjalan di latar belakang
-    antrean.push({ invoice: invoice, waktu: Date.now() });
+    antrean.push({ invoice: invoice, hasil: hasil, waktu: Date.now() });
     simpanAntrean();
-    records.push({ invoice: invoice });
+    records.push({ invoice: invoice, hasil: hasil });
     draft = '';
+    draftHasil = '';
     pos++;
     tampilPesan('Tercatat.', 'ok');
     tampilkan();
