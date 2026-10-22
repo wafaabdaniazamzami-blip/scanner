@@ -14,111 +14,41 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     :root {
-      /* Palet biru korporat. Ganti nilai hex di sini jika ada kode warna resmi. */
-      --biru-900: #0a2a66;
-      --biru-700: #0d47a1;
-      --biru-500: #1e6fd9;
-      --biru-100: #e3edfb;
-      --latar: #f2f6fc;
-      --teks: #0f1b2d;
-      --abu: #5b6b82;
-      --garis: #cdd9eb;
-      --salah: #b3261e;
-      --benar: #1b6e2d;
+      --biru-900: #0a2a66; --biru-700: #0d47a1; --biru-500: #1e6fd9; --biru-100: #e3edfb;
+      --latar: #f2f6fc; --teks: #0f1b2d; --abu: #5b6b82; --garis: #cdd9eb; --salah: #b3261e; --benar: #1b6e2d;
     }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--teks);
-      background: var(--latar);
-    }
-    header {
-      padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 64px;
-      color: #fff;
-      background: linear-gradient(135deg, var(--biru-900), var(--biru-500));
-    }
+    body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--teks); background: var(--latar); }
+    header { padding: calc(20px + env(safe-area-inset-top, 0px)) 16px 64px; color: #fff; background: linear-gradient(135deg, var(--biru-900), var(--biru-500)); }
     header h1, header p { max-width: 480px; margin-left: auto; margin-right: auto; }
     header h1 { margin-top: 0; margin-bottom: 4px; font-size: 22px; font-weight: 700; }
     header p { margin-top: 0; margin-bottom: 0; font-size: 14px; opacity: .85; }
     main { max-width: 480px; margin: -44px auto 0; padding: 0 12px 28px; }
-    .kartu {
-      margin-bottom: 12px;
-      padding: 12px;
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 6px 20px rgba(10, 42, 102, .12);
-    }
+    .kartu { margin-bottom: 12px; padding: 12px; background: #fff; border-radius: 16px; box-shadow: 0 6px 20px rgba(10, 42, 102, .12); }
 
     /* Kamera */
-    #kamera {
-      position: relative;
-      height: 150px;
-      overflow: hidden;
-      background: #0a1a33;
-      border-radius: 12px;
-      cursor: pointer;
-    }
+    #kamera { position: relative; height: 150px; overflow: hidden; background: #0a1a33; border-radius: 12px; cursor: pointer; }
     #reader, #reader__scan_region { width: 100%; height: 100% !important; min-height: 0 !important; }
     #reader video { display: block; width: 100% !important; height: 100% !important; object-fit: cover; }
     #reader #qr-shaded-region { border-color: rgba(10, 42, 102, .45) !important; }
     #reader #qr-shaded-region div { background-color: #6fb0ff !important; }
-    #pesanKamera {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      padding: 12px;
-      overflow: auto;
-      text-align: center;
-      font-size: 13px;
-      line-height: 1.4;
-      color: #cfe0fb;
-    }
+    #pesanKamera { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: auto; text-align: center; font-size: 13px; line-height: 1.4; color: #cfe0fb; }
     #pesanKamera[hidden] { display: none; }
     .baris-scan { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; min-height: 30px; }
-    #statusData {
-      padding: 4px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--biru-700);
-      background: var(--biru-100);
-      border-radius: 999px;
-    }
-    #scanUlang, #btnFoto {
-      padding: 6px 14px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--biru-700);
-      background: #fff;
-      border: 1.5px solid var(--biru-500);
-      border-radius: 999px;
-    }
+    #statusData { padding: 4px 12px; font-size: 13px; font-weight: 600; color: var(--biru-700); background: var(--biru-100); border-radius: 999px; }
+    #scanUlang, #btnFoto { padding: 6px 14px; font-size: 13px; font-weight: 600; color: var(--biru-700); background: #fff; border: 1.5px solid var(--biru-500); border-radius: 999px; }
     #scanUlang { margin-left: auto; }
-
-    #antrean {
-      padding: 4px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #8a4b00;
-      background: #fff1dc;
-      border-radius: 999px;
-    }
+    #scanUlang[hidden], #btnFoto[hidden] { display: none; }
+    #btnSimpan { display: block; width: 100%; margin-top: 12px; padding: 13px; font-size: 16px; font-weight: 600; color: #fff; background: var(--biru-700); border: 1.5px solid var(--biru-700); border-radius: 12px; }
+    #btnSimpan:disabled { opacity: .45; }
+    #antrean { padding: 4px 12px; font-size: 13px; font-weight: 600; color: #8a4b00; background: #fff1dc; border-radius: 999px; }
     #antrean[hidden] { display: none; }
 
     /* Form */
     label { display: block; margin: 14px 0 6px; font-size: 14px; font-weight: 600; color: var(--biru-900); }
     label:first-child { margin-top: 2px; }
     input[readonly] { background: #f4f7fc; }
-    input[type="text"] {
-      display: block;
-      width: 100%;
-      padding: 13px 14px;
-      font-size: 18px;
-      color: var(--teks);
-      background: #fff;
-      border: 1.5px solid var(--garis);
-      border-radius: 10px;
-    }
+    input[type="text"] { display: block; width: 100%; padding: 13px 14px; font-size: 18px; color: var(--teks); background: #fff; border: 1.5px solid var(--garis); border-radius: 10px; }
     input[type="text"]:focus { outline: none; border-color: var(--biru-500); box-shadow: 0 0 0 3px rgba(30, 111, 217, .22); }
     input::placeholder { color: #9aa8bd; }
     #invoice { letter-spacing: .5px; }
@@ -127,16 +57,8 @@
     #pesan.ok { color: var(--benar); }
 
     /* Pilihan hasil cek */
-    .pilih { display: flex; gap: 12px; margin-top: 12px; }
-    .pilih button {
-      flex: 1;
-      padding: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      background: #fff;
-      border: 1.5px solid;
-      border-radius: 12px;
-    }
+    .pilih { display: flex; gap: 12px; margin-top: 14px; }
+    .pilih button { flex: 1; padding: 12px; font-size: 16px; font-weight: 600; background: #fff; border: 1.5px solid; border-radius: 12px; }
     #btnOke { color: var(--benar); border-color: var(--benar); }
     #btnOke.aktif { color: #fff; background: var(--benar); }
     #btnCek { color: #8a4b00; border-color: #c77700; }
@@ -145,26 +67,14 @@
 
     /* Tombol */
     .tombol { display: flex; gap: 12px; margin-top: 16px; }
-    .tombol button {
-      flex: 1;
-      padding: 14px;
-      font-size: 16px;
-      font-weight: 600;
-      border: 1.5px solid var(--biru-700);
-      border-radius: 12px;
-    }
+    .tombol button { flex: 1; padding: 14px; font-size: 16px; font-weight: 600; border: 1.5px solid var(--biru-700); border-radius: 12px; }
     #btnPrev { color: var(--biru-700); background: #fff; }
     #btnNext { color: #fff; background: var(--biru-700); }
     .tombol button:disabled { opacity: .45; }
     button:focus-visible { outline: 3px solid var(--biru-500); outline-offset: 2px; }
 
     /* Pop-up izin kamera */
-    .modal {
-      position: fixed; inset: 0; z-index: 10;
-      display: flex; align-items: center; justify-content: center;
-      padding: 16px;
-      background: rgba(10, 26, 51, .65);
-    }
+    .modal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(10, 26, 51, .65); }
     .modal[hidden] { display: none; }
     .kotak { width: 100%; max-width: 420px; padding: 22px; background: #fff; border-radius: 16px; }
     .kotak h2 { margin: 0 0 8px; font-size: 19px; color: var(--biru-900); }
@@ -178,7 +88,7 @@
 <body>
 <header>
   <h1>Scanner Barcode</h1>
-  <p>Scan nomor invoice, pilih Oke atau Butuh Cek, lalu tekan Next.</p>
+  <p>Scan invoice, tekan Simpan, pilih Oke atau Butuh Cek, lalu tekan Next.</p>
 </header>
 <main>
   <section class="kartu">
@@ -199,6 +109,8 @@
     <label for="invoice">Nomor invoice</label>
     <input type="text" id="invoice" autocomplete="off" placeholder="Hasil scan muncul di sini">
 
+    <button type="button" id="btnSimpan">Simpan</button>
+
     <div class="pilih">
       <button type="button" id="btnOke" aria-pressed="false">Oke</button>
       <button type="button" id="btnCek" aria-pressed="false">Butuh Cek</button>
@@ -216,7 +128,7 @@
 <div id="modalKamera" class="modal" role="dialog" aria-modal="true" aria-labelledby="mJudul" hidden>
   <div class="kotak">
     <h2 id="mJudul">Izinkan akses kamera</h2>
-    <p id="mTeks">Kamera dipakai untuk memindai barcode invoice. Tekan tombol biru, lalu pilih Izinkan pada pop-up browser.</p>
+    <p id="mTeks">Kamera dipakai untuk memindai barcode invoice. Tekan tombol Izinkan kamera, lalu pilih Izinkan pada pop-up browser.</p>
     <button type="button" id="mIzin">Izinkan kamera</button>
     <button type="button" id="mFoto">Pakai foto barcode</button>
     <button type="button" id="mTutup">Ketik manual saja</button>
@@ -226,11 +138,13 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
   // ---- State ----
-  let records = [];      // invoice yang sudah dicatat pada sesi ini: {invoice, hasil}
+  let records = [];      // invoice yang sudah selesai dicatat pada sesi ini: {invoice, hasil, nilai}
   let pos = 0;           // posisi saat ini; pos === records.length berarti data baru
-  let draft = '';        // isian data baru yang belum dicatat
+  let draft = '';        // isian data baru
   let hasil = '';        // pilihan pada data baru: 'Oke' / 'Butuh Cek'
   let draftHasil = '';   // pilihan yang disimpan saat pindah ke data lama
+  let tersimpan = false; // data baru ini sudah masuk spreadsheet
+  let nilai = '';        // Nilai Invoice hasil XLOOKUP
   let scanner = null;
   let scannerJalan = false;
   let scannerJeda = false;
@@ -244,7 +158,6 @@
   const modal = $('modalKamera');
 
   // ---- Konfigurasi ----
-  // Ganti dengan URL Web App Apps Script (berakhiran /exec)
   const API_URL = 'https://script.google.com/macros/s/AKfycbyr5j65AWSYjadfUArVllRm2Bo0LT6zQjx-BIH7fjy1fCny00sS1L_nXRbZohWgoaBK/exec';
 
   function simpanLokal(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
@@ -276,12 +189,13 @@
     return json;
   }
 
-  // ---- Antrean kirim ----
-  // Tombol Next langsung lanjut; data dikirim di latar belakang dan otomatis dicoba ulang jika offline.
-  const KUNCI_ANTREAN = 'antrean';
+  // ---- Antrean kirim hasil cek ----
+  // Hanya pilihan Oke / Butuh Cek yang diantrekan; data invoice sudah tersimpan lewat tombol Simpan.
+  const KUNCI_ANTREAN = 'antrean_hasil';
   let antrean = (() => {
     try { return JSON.parse(localStorage.getItem(KUNCI_ANTREAN) || '[]'); } catch (e) { return []; }
   })();
+  try { localStorage.removeItem('antrean'); } catch (e) {}   // antrean versi lama tidak kompatibel
 
   function simpanAntrean() {
     try { localStorage.setItem(KUNCI_ANTREAN, JSON.stringify(antrean)); } catch (e) {}
@@ -290,7 +204,7 @@
   function tampilAntrean() {
     const el = $('antrean');
     el.hidden = antrean.length === 0;
-    el.textContent = antrean.length + ' menunggu kirim';
+    el.textContent = antrean.length + ' hasil menunggu kirim';
   }
 
   let sedangBilas = false;
@@ -299,15 +213,14 @@
     sedangBilas = true;
     try {
       while (antrean.length) {
-        const paket = antrean.slice(0, 25);           // banyak invoice dalam satu kiriman
-        const res = await api('save', { items: paket });
+        const paket = antrean.slice(0, 25);
+        const res = await api('hasil', { items: paket });
         if (!res || !res.ok) {
           if (res && res.message) tampilPesan(res.message, 'err');
-          break;                                       // data tetap di antrean, dicoba lagi nanti
+          break;                                       // tetap di antrean, dicoba lagi nanti
         }
         antrean = antrean.slice(paket.length);
         simpanAntrean();
-        if (res.duplikat) tampilPesan(res.duplikat + ' invoice sudah tercatat sebelumnya, dilewati.', 'err');
       }
     } catch (e) { /* masih offline, coba lagi nanti */ }
     sedangBilas = false;
@@ -319,7 +232,6 @@
     elPesan.className = jenis || '';
   }
 
-  // Menandai pilihan Oke / Butuh Cek pada tombol
   function setHasil(h) {
     hasil = h;
     $('btnOke').classList.toggle('aktif', h === 'Oke');
@@ -328,12 +240,12 @@
     $('btnCek').setAttribute('aria-pressed', String(h === 'Butuh Cek'));
   }
   $('btnOke').addEventListener('click', () => {
-    if (pos !== records.length) return;
+    if (pos !== records.length || !tersimpan) return;
     setHasil('Oke');
     tampilPesan('');
   });
   $('btnCek').addEventListener('click', () => {
-    if (pos !== records.length) return;
+    if (pos !== records.length || !tersimpan) return;
     setHasil('Butuh Cek');
     tampilPesan('');
   });
@@ -383,35 +295,37 @@
       if (ya && !scannerJeda) { scanner.pause(true); scannerJeda = true; }
       if (!ya && scannerJeda) { scanner.resume(); scannerJeda = false; }
     } catch (e) { console.error(e); }
-    $('scanUlang').hidden = !(ya && pos === records.length);
+    $('scanUlang').hidden = !(ya && pos === records.length && !tersimpan);
   }
 
   function saatTerscan(teks) {
-    if (pos < records.length) return;      // sedang melihat data lama
+    if (pos < records.length || tersimpan) return;   // sedang melihat data lama / data ini sudah tersimpan
     const kode = String(teks).trim();
     if (!kode || kode === kodeTerakhir) return;
     if (records.some((r) => r.invoice === kode)) {
       return tampilPesan('Invoice ' + kode + ' sudah discan pada sesi ini.', 'err');
     }
     kodeTerakhir = kode;
-    setHasil('');                          // invoice baru: pilihan harus diisi ulang
+    setHasil('');
 
     elInvoice.value = kode;
     if (navigator.vibrate) navigator.vibrate(120);
     jedaScanner(true);
-    tampilPesan('Barcode terbaca. Pilih Oke atau Butuh Cek, lalu tekan Next.', 'ok');
+    tampilPesan('Barcode terbaca. Tekan Simpan.', 'ok');
   }
 
   // ---- Tampilan data ----
   function tampilkan() {
     const baru = pos === records.length;
-    elInvoice.readOnly = !baru;               // data lama hanya untuk dilihat
-    $('btnOke').disabled = !baru;
-    $('btnCek').disabled = !baru;
+    elInvoice.readOnly = !baru || tersimpan;   // data lama / yang sudah tersimpan tidak bisa diubah
+    $('btnOke').disabled = !baru || !tersimpan;
+    $('btnCek').disabled = !baru || !tersimpan;
+    $('btnSimpan').disabled = !baru || tersimpan;
+    $('btnSimpan').textContent = (!baru || tersimpan) ? 'Tersimpan' : 'Simpan';
     if (baru) {
       elInvoice.value = draft;
       setHasil(draftHasil);
-      $('statusData').textContent = 'Data baru';
+      $('statusData').textContent = tersimpan ? 'Tersimpan, pilih hasil' : 'Data baru';
       kodeTerakhir = draft;
       jedaScanner(!!draft);
     } else {
@@ -420,7 +334,7 @@
       $('statusData').textContent = 'Data ke-' + (pos + 1) + ' dari ' + records.length + ' (sudah dicatat)';
       jedaScanner(true);
     }
-    $('scanUlang').hidden = !(baru && scannerJeda);
+    $('scanUlang').hidden = !(baru && scannerJeda && !tersimpan);
     btnPrev.disabled = pos === 0;
     btnNext.disabled = false;
   }
@@ -434,6 +348,34 @@
     jedaScanner(false);
   });
 
+  // Langkah 1: tombol Simpan menulis Timestamp, No Invoice, Nilai Invoice, User ke spreadsheet
+  $('btnSimpan').addEventListener('click', async () => {
+    if (pos !== records.length || tersimpan) return;
+    const invoice = elInvoice.value.trim();
+    if (!invoice) return tampilPesan('Scan barcode atau isi nomor invoice dulu.', 'err');
+    if (records.some((r) => r.invoice === invoice)) return tampilPesan('Invoice ini sudah discan pada sesi ini.', 'err');
+
+    draft = invoice;                         // agar tampilkan() tidak menghapus isian
+    $('btnSimpan').disabled = true;
+    tampilPesan('Menyimpan ke spreadsheet...');
+    try {
+      let res = await api('simpan', { invoice: invoice });
+      if (res && res.code === 'PIN') res = await api('simpan', { invoice: invoice });   // PIN salah: ditanyakan lagi lalu coba ulang
+      if (!res || !res.ok) {
+        tampilPesan((res && res.message) || 'Gagal menyimpan. Coba lagi.', 'err');
+      } else {
+        tersimpan = true;
+        nilai = String(res.nilai == null ? '' : res.nilai);
+        if (nilai === 'Tidak Ditemukan') tampilPesan('Tersimpan, tetapi invoice tidak ada di Master Data. Periksa dulu.', 'err');
+        else tampilPesan('Tersimpan. Pilih Oke atau Butuh Cek, lalu Next.', 'ok');
+      }
+    } catch (e) {
+      tampilPesan('Tidak ada koneksi. Menyimpan butuh internet, coba lagi.', 'err');
+    }
+    $('btnSimpan').disabled = false;
+    tampilkan();
+  });
+
   btnPrev.addEventListener('click', () => {
     if (pos === 0) return;
     if (pos === records.length) { draft = elInvoice.value.trim(); draftHasil = hasil; }
@@ -442,9 +384,9 @@
     tampilkan();
   });
 
+  // Langkah 2: setelah tersimpan dan hasil dipilih, Next mengirim hasil cek lalu lanjut
   btnNext.addEventListener('click', () => {
-    // Data lama hanya dilihat: langsung lanjut
-    if (pos < records.length) {
+    if (pos < records.length) {              // data lama hanya dilihat
       pos++;
       tampilPesan('');
       return tampilkan();
@@ -452,17 +394,13 @@
 
     const invoice = elInvoice.value.trim();
     if (!invoice) return tampilPesan('Scan barcode atau isi nomor invoice dulu.', 'err');
-    if (records.some((r) => r.invoice === invoice)) {
-      return tampilPesan('Invoice ini sudah discan pada sesi ini.', 'err');
-    }
+    if (!tersimpan) return tampilPesan('Tekan Simpan dulu.', 'err');
     if (!hasil) return tampilPesan('Pilih Oke atau Butuh Cek dulu.', 'err');
 
-    // Langsung lanjut ke scan berikutnya; pengiriman berjalan di latar belakang
-    antrean.push({ invoice: invoice, hasil: hasil, waktu: Date.now() });
+    antrean.push({ invoice: invoice, hasil: hasil });
     simpanAntrean();
-    records.push({ invoice: invoice, hasil: hasil });
-    draft = '';
-    draftHasil = '';
+    records.push({ invoice: invoice, hasil: hasil, nilai: nilai });
+    draft = ''; draftHasil = ''; tersimpan = false; nilai = '';
     pos++;
     tampilPesan('Tercatat.', 'ok');
     tampilkan();
