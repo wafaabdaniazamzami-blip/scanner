@@ -52,6 +52,8 @@
     input[type="text"]:focus { outline: none; border-color: var(--biru-500); box-shadow: 0 0 0 3px rgba(30, 111, 217, .22); }
     input::placeholder { color: #9aa8bd; }
     #invoice { letter-spacing: .5px; }
+    #catatan { margin-top: 10px; }
+    #catatan[hidden] { display: none; }
     #pesan { min-height: 22px; margin: 12px 0 0; font-size: 14px; text-align: center; }
     #pesan.err { color: var(--salah); }
     #pesan.ok { color: var(--benar); }
@@ -115,6 +117,7 @@
       <button type="button" id="btnOke" aria-pressed="false">Oke</button>
       <button type="button" id="btnCek" aria-pressed="false">Butuh Cek</button>
     </div>
+    <input type="text" id="catatan" maxlength="300" autocomplete="off" placeholder="Tulis catatan: apa yang perlu dicek?" aria-label="Catatan" hidden>
 
     <p id="pesan" role="status" aria-live="polite"></p>
 
@@ -138,11 +141,12 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
   // ---- State ----
-  let records = [];      // invoice yang sudah selesai dicatat pada sesi ini: {invoice, hasil, nilai}
+  let records = [];      // invoice yang sudah selesai dicatat pada sesi ini: {invoice, hasil, catatan, nilai}
   let pos = 0;           // posisi saat ini; pos === records.length berarti data baru
   let draft = '';        // isian data baru
   let hasil = '';        // pilihan pada data baru: 'Oke' / 'Butuh Cek'
   let draftHasil = '';   // pilihan yang disimpan saat pindah ke data lama
+  let draftCatatan = ''; // catatan yang disimpan saat pindah ke data lama
   let tersimpan = false; // data baru ini sudah masuk spreadsheet
   let nilai = '';        // Nilai Invoice hasil XLOOKUP
   let scanner = null;
@@ -152,6 +156,7 @@
 
   const $ = (id) => document.getElementById(id);
   const elInvoice = $('invoice');
+  const elCatatan = $('catatan');
   const elPesan = $('pesan');
   const btnPrev = $('btnPrev');
   const btnNext = $('btnNext');
@@ -190,7 +195,7 @@
   }
 
   // ---- Antrean kirim hasil cek ----
-  // Hanya pilihan Oke / Butuh Cek yang diantrekan; data invoice sudah tersimpan lewat tombol Simpan.
+  // Hanya Oke / Butuh Cek (dan catatan) yang diantrekan; data invoice sudah tersimpan lewat tombol Simpan.
   const KUNCI_ANTREAN = 'antrean_hasil';
   let antrean = (() => {
     try { return JSON.parse(localStorage.getItem(KUNCI_ANTREAN) || '[]'); } catch (e) { return []; }
@@ -232,12 +237,14 @@
     elPesan.className = jenis || '';
   }
 
+  // Menandai pilihan Oke / Butuh Cek; kolom catatan hanya tampil untuk Butuh Cek
   function setHasil(h) {
     hasil = h;
     $('btnOke').classList.toggle('aktif', h === 'Oke');
     $('btnCek').classList.toggle('aktif', h === 'Butuh Cek');
     $('btnOke').setAttribute('aria-pressed', String(h === 'Oke'));
     $('btnCek').setAttribute('aria-pressed', String(h === 'Butuh Cek'));
+    elCatatan.hidden = h !== 'Butuh Cek';
   }
   $('btnOke').addEventListener('click', () => {
     if (pos !== records.length || !tersimpan) return;
@@ -248,6 +255,7 @@
     if (pos !== records.length || !tersimpan) return;
     setHasil('Butuh Cek');
     tampilPesan('');
+    elCatatan.focus();
   });
 
   // ---- Kamera / scanner ----
@@ -318,6 +326,7 @@
   function tampilkan() {
     const baru = pos === records.length;
     elInvoice.readOnly = !baru || tersimpan;   // data lama / yang sudah tersimpan tidak bisa diubah
+    elCatatan.readOnly = !baru;
     $('btnOke').disabled = !baru || !tersimpan;
     $('btnCek').disabled = !baru || !tersimpan;
     $('btnSimpan').disabled = !baru || tersimpan;
@@ -325,12 +334,14 @@
     if (baru) {
       elInvoice.value = draft;
       setHasil(draftHasil);
+      elCatatan.value = draftCatatan;
       $('statusData').textContent = tersimpan ? 'Tersimpan, pilih hasil' : 'Data baru';
       kodeTerakhir = draft;
       jedaScanner(!!draft);
     } else {
       elInvoice.value = records[pos].invoice;
       setHasil(records[pos].hasil || '');
+      elCatatan.value = records[pos].catatan || '';
       $('statusData').textContent = 'Data ke-' + (pos + 1) + ' dari ' + records.length + ' (sudah dicatat)';
       jedaScanner(true);
     }
@@ -378,13 +389,13 @@
 
   btnPrev.addEventListener('click', () => {
     if (pos === 0) return;
-    if (pos === records.length) { draft = elInvoice.value.trim(); draftHasil = hasil; }
+    if (pos === records.length) { draft = elInvoice.value.trim(); draftHasil = hasil; draftCatatan = elCatatan.value; }
     pos--;
     tampilPesan('');
     tampilkan();
   });
 
-  // Langkah 2: setelah tersimpan dan hasil dipilih, Next mengirim hasil cek lalu lanjut
+  // Langkah 2: setelah tersimpan dan hasil dipilih, Next mengirim hasil cek (dan catatan) lalu lanjut
   btnNext.addEventListener('click', () => {
     if (pos < records.length) {              // data lama hanya dilihat
       pos++;
@@ -397,10 +408,11 @@
     if (!tersimpan) return tampilPesan('Tekan Simpan dulu.', 'err');
     if (!hasil) return tampilPesan('Pilih Oke atau Butuh Cek dulu.', 'err');
 
-    antrean.push({ invoice: invoice, hasil: hasil });
+    const catatan = hasil === 'Butuh Cek' ? elCatatan.value.trim() : '';
+    antrean.push({ invoice: invoice, hasil: hasil, catatan: catatan });
     simpanAntrean();
-    records.push({ invoice: invoice, hasil: hasil, nilai: nilai });
-    draft = ''; draftHasil = ''; tersimpan = false; nilai = '';
+    records.push({ invoice: invoice, hasil: hasil, catatan: catatan, nilai: nilai });
+    draft = ''; draftHasil = ''; draftCatatan = ''; tersimpan = false; nilai = '';
     pos++;
     tampilPesan('Tercatat.', 'ok');
     tampilkan();
